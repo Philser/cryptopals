@@ -9,15 +9,23 @@ pub fn unpad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<d
         )));
     }
 
-    let padding = plaintext[plaintext.len() - 1] as u8;
+    let padding_char = plaintext[plaintext.len() - 1] as u8;
 
-    if (padding as usize) > block_size {
+    // Assuming the plaintext does not contain non-ascii chars
+    if (padding_char as usize) > block_size {
         // Is not padded
         return Ok(plaintext.to_vec());
     }
 
     let mut new = plaintext.to_vec();
-    new.truncate(plaintext.len() - padding as usize);
+    let padding_start = plaintext.len() - padding_char as usize;
+    for byte in new[padding_start..].into_iter() {
+        if *byte != padding_char {
+            return Err(Box::from("Invalid padding detected"));
+        }
+    }
+
+    new.truncate(plaintext.len() - padding_char as usize);
 
     Ok(new)
 }
@@ -254,6 +262,33 @@ fn can_unpad() {
     ) {
         Ok(unpadded) => assert_eq!(expected, unpadded),
         Err(_) => panic!("Test should not have failed"),
+    }
+}
+
+#[test]
+fn can_detect_faulty_padded_cipher_length() {
+    let plaintext = b"YELLOW SUBMARINE\x01".to_vec();
+    match unpad_pkcs7(&plaintext, 16) {
+        Ok(_) => panic!("Should have failed"),
+        Err(e) => assert_eq!(
+            format!("{}", e),
+            "Plaintext not padded to multiple of block size 16"
+        ),
+    }
+}
+
+#[test]
+fn can_detect_faulty_padding() {
+    let plaintext = b"YELLOW SUBMARIN\x02".to_vec();
+    match unpad_pkcs7(&plaintext, 16) {
+        Ok(_) => panic!("Should have failed"),
+        Err(e) => assert_eq!(format!("{}", e), "Invalid padding detected"),
+    }
+
+    let plaintext = b"YELLOW\x01\x02".to_vec();
+    match unpad_pkcs7(&plaintext, 8) {
+        Ok(_) => panic!("Should have failed"),
+        Err(e) => assert_eq!(format!("{}", e), "Invalid padding detected"),
     }
 }
 

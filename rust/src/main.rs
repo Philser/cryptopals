@@ -1,4 +1,6 @@
-use cryptopals::set2;
+mod oracle;
+mod set2;
+mod utils;
 use std::io::{self};
 
 fn main() {
@@ -13,6 +15,7 @@ fn main() {
         (12) - Byte-at-a-time ECB decryption (Simple)
         (13) - ECB cut-and-paste
         (14) - Byte-at-a-time ECB decryption (Harder)
+        (16) - CBC bitflipping attacks
         (q)  - Quit
     "###
         );
@@ -31,6 +34,7 @@ fn main() {
             "12" => set2::challenge12::run().unwrap(),
             "13" => set2::challenge13::run().unwrap(),
             "14" => set2::challenge14::run().unwrap(),
+            "16" => set2::challenge16::run().unwrap(),
             "q" => {
                 println!("Goodbye");
                 break;

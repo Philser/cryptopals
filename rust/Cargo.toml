@@ -1,5 +1,5 @@
 [package]
-name = "cryptopals"
+name = "rust"
 version = "0.1.0"
 authors = ["Philser <pk30.05@hotmail.de>"]
 edition = "2018"
