@@ -121,17 +121,13 @@ pub fn encrypt_aes_ecb(plaintext: &[u8], key: &[u8]) -> Result<Vec<u8>, Box<dyn 
     Ok(cipher)
 }
 
-pub fn encrypt_aes_cbc(
-    plaintext: &[u8],
-    iv: Vec<u8>,
-    key: &[u8],
-) -> Result<Vec<u8>, Box<dyn Error>> {
+pub fn encrypt_aes_cbc(plaintext: &[u8], iv: &[u8], key: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
     let suite = Cipher::aes_128_ecb();
 
     let padded = pad_pkcs7(plaintext, suite.block_size())?;
     let mut offset;
     let mut cipher = b"".to_vec();
-    let mut previous_block = iv;
+    let mut previous_block: Vec<u8> = iv.to_vec();
     let mut curr_block: Vec<u8>;
     for i in 0..(padded.len() / suite.block_size()) {
         offset = i * suite.block_size();
@@ -172,7 +168,7 @@ pub fn decrypt_aes_ebc(cipher: &[u8], key: &[u8], unpad: bool) -> Result<Vec<u8>
 
 pub fn decrypt_aes_cbc(
     cipher: &[u8],
-    iv: Vec<u8>,
+    iv: &[u8],
     key: &[u8],
     unpad: bool,
 ) -> Result<Vec<u8>, Box<dyn Error>> {
@@ -186,7 +182,7 @@ pub fn decrypt_aes_cbc(
 
     let mut offset;
     let mut plaintext = b"".to_vec();
-    let mut previous_block = iv;
+    let mut previous_block = iv.to_vec();
     let mut curr_block;
     for i in 0..(cipher.len() / suite.block_size()) {
         offset = i * suite.block_size();
@@ -382,7 +378,7 @@ fn can_decrypt_aes_cbc() {
     let mut encrypted = encrypt(suite, &key, Some(&iv), &plaintext).unwrap();
     let mut expected = decrypt(suite, &key, Some(&iv), &encrypted).unwrap();
 
-    match decrypt_aes_cbc(&encrypted, iv.clone(), &key, true) {
+    match decrypt_aes_cbc(&encrypted, &iv, &key, true) {
         Ok(decrypted) => assert_eq!(expected, decrypted),
         Err(e) => panic!("Test failed with: {}", e),
     }
@@ -390,7 +386,7 @@ fn can_decrypt_aes_cbc() {
     plaintext = b"YELLOW SUBMARINE".to_vec();
     encrypted = encrypt(suite, &key, Some(&iv), &plaintext).unwrap();
     expected = decrypt(suite, &key, Some(&iv), &encrypted).unwrap();
-    match decrypt_aes_cbc(&encrypted, iv.clone(), &key, true) {
+    match decrypt_aes_cbc(&encrypted, &iv, &key, true) {
         Ok(decrypted) => assert_eq!(expected, decrypted,),
         Err(e) => panic!("Test failed with: {}", e),
     }
@@ -409,7 +405,7 @@ fn can_encrypt_aes_cbc() {
 
     let mut expected = encrypt(suite, &key, Some(&iv), &plaintext).unwrap();
 
-    match encrypt_aes_cbc(&plaintext, iv.clone(), &key) {
+    match encrypt_aes_cbc(&plaintext, &iv, &key) {
         Ok(encrypted) => {
             assert_eq!(expected, encrypted)
         }
@@ -420,7 +416,7 @@ fn can_encrypt_aes_cbc() {
 
     expected = encrypt(suite, &key, Some(&iv), &plaintext).unwrap();
 
-    match encrypt_aes_cbc(&plaintext, iv.clone(), &key) {
+    match encrypt_aes_cbc(&plaintext, &iv, &key) {
         Ok(encrypted) => {
             assert_eq!(expected, encrypted)
         }

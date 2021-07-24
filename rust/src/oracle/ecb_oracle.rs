@@ -1,5 +1,5 @@
 use crate::oracle::oracle_trait::Oracle;
-use crate::oracle::utils::{generate_random_byte_vec, generate_random_byte_vec_arbitrary_length};
+use crate::oracle::utils::{generate_random_byte_vec, generate_random_byte_vec_random_length};
 use crate::utils::crypto;
 use std::error::Error;
 
@@ -32,7 +32,7 @@ impl ECBOracle {
 
         let mut random_prefix = None;
         if with_random_prefix {
-            random_prefix = Some(generate_random_byte_vec_arbitrary_length());
+            random_prefix = Some(generate_random_byte_vec_random_length());
         }
 
         Ok(ECBOracle {

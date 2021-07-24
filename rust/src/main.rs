@@ -1,5 +1,6 @@
 mod oracle;
 mod set2;
+mod set3;
 mod utils;
 use std::io::{self};
 
@@ -35,6 +36,7 @@ fn main() {
             "13" => set2::challenge13::run().unwrap(),
             "14" => set2::challenge14::run().unwrap(),
             "16" => set2::challenge16::run().unwrap(),
+            "17" => set3::challenge17::run().unwrap(),
             "q" => {
                 println!("Goodbye");
                 break;

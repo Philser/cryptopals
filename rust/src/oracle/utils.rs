@@ -4,6 +4,7 @@ use rand::Rng;
 
 use crate::utils::crypto;
 
+/// Generates a vector of random bytes with the given length
 pub fn generate_random_byte_vec(len: usize) -> Vec<u8> {
     let mut rng = rand::thread_rng();
 
@@ -15,7 +16,8 @@ pub fn generate_random_byte_vec(len: usize) -> Vec<u8> {
         .collect()
 }
 
-pub fn generate_random_byte_vec_arbitrary_length() -> Vec<u8> {
+/// Generates a vector of random bytes with a random length between 0 and 256 byte
+pub fn generate_random_byte_vec_random_length() -> Vec<u8> {
     let mut rng = rand::thread_rng();
     let len: u8 = rng.gen();
     (0..len)
@@ -26,6 +28,8 @@ pub fn generate_random_byte_vec_arbitrary_length() -> Vec<u8> {
         .collect()
 }
 
+/// Creates a ciphertext from a plaintext, using a randomly generated key and choosing randomly
+/// between CBC and ECB mode
 pub fn aes_encryption_oracle(plaintext: &[u8]) -> Result<(Vec<u8>, &str), Box<dyn Error>> {
     let key = generate_random_byte_vec(16);
 
@@ -52,7 +56,7 @@ pub fn aes_encryption_oracle(plaintext: &[u8]) -> Result<(Vec<u8>, &str), Box<dy
         0 => {
             mode = "CBC";
             let iv = generate_random_byte_vec(16);
-            cipher = crypto::encrypt_aes_cbc(&to_encrypt, iv, &key)?;
+            cipher = crypto::encrypt_aes_cbc(&to_encrypt, &iv, &key)?;
         }
         1 => {
             mode = "ECB";

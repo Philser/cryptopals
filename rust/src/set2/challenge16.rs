@@ -17,13 +17,13 @@ fn encrypt(input: &str, key: &[u8], iv: &[u8]) -> Result<Vec<u8>, Box<dyn Error>
     plaintext.extend(sanitized.as_bytes());
     plaintext.extend(b";comment2=%20like%20a%20pound%20of%20bacon");
 
-    let cipher = encrypt_aes_cbc(&plaintext, iv.to_vec(), key)?;
+    let cipher = encrypt_aes_cbc(&plaintext, &iv, key)?;
 
     Ok(cipher)
 }
 
 fn is_admin(cipher: &[u8], key: &[u8], iv: &[u8]) -> Result<bool, Box<dyn Error>> {
-    let plaintext = String::from_utf8(decrypt_aes_cbc(cipher, iv.to_vec(), key, true)?)?;
+    let plaintext = String::from_utf8(decrypt_aes_cbc(cipher, &iv, key, true)?)?;
 
     Ok(plaintext.contains(";admin=true;"))
 }

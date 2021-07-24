@@ -21,7 +21,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     }
     let decoded = base64::decode(contents)?;
 
-    let decrypted = decrypt_aes_cbc(&decoded, iv, &b"YELLOW SUBMARINE".to_vec(), false)?;
+    let decrypted = decrypt_aes_cbc(&decoded, &iv, &b"YELLOW SUBMARINE".to_vec(), false)?;
 
     unsafe {
         println!("Decrypted:\n{}", str::from_utf8_unchecked(&decrypted));
