@@ -10,7 +10,6 @@ pub fn unpad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<d
     }
 
     let padding_char = plaintext[plaintext.len() - 1] as u8;
-
     // Assuming the plaintext does not contain non-ascii chars
     if (padding_char as usize) > block_size {
         // Is not padded
@@ -19,7 +18,7 @@ pub fn unpad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<d
 
     let mut new = plaintext.to_vec();
     let padding_start = plaintext.len() - padding_char as usize;
-    for byte in new[padding_start..].into_iter() {
+    for byte in new[padding_start..].iter() {
         if *byte != padding_char {
             return Err(Box::from("Invalid padding detected"));
         }

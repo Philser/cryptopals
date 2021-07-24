@@ -17,6 +17,7 @@ fn main() {
         (13) - ECB cut-and-paste
         (14) - Byte-at-a-time ECB decryption (Harder)
         (16) - CBC bitflipping attacks
+        (17) - The CBC padding oracle
         (q)  - Quit
     "###
         );

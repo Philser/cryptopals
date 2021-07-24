@@ -60,9 +60,18 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let block_size = 16;
     let key = generate_random_byte_vec(block_size);
 
-    let cipher = encrypt_plaintext(&key, block_size);
+    let result = encrypt_plaintext(&key, block_size)?;
+    let mut cipher = result.ciphertext.clone();
+    let cipher_len = cipher.len();
 
-    
+    // Set last byte to a value until we match padding
+    for byte in 0..255 {
+        cipher[cipher_len - block_size - 1] = byte;
+
+        if has_valid_padding(&cipher, &key, &result.iv, block_size)? {
+            println!("Done. Found value {}", byte);
+        }
+    }
 
     Ok(())
 }
