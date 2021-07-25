@@ -30,11 +30,9 @@ struct EncryptedResult {
 }
 
 fn encrypt_plaintext(key: &[u8], block_size: usize) -> Result<EncryptedResult, Box<dyn Error>> {
-    let plaintext = pad_pkcs7(pick_random_string().as_bytes(), block_size)?;
-
     let iv = generate_random_byte_vec(block_size);
 
-    let cipher = encrypt_aes_cbc(&plaintext, &iv, &key)?;
+    let cipher = encrypt_aes_cbc(&pick_random_string().as_bytes(), &iv, &key)?;
 
     Ok(EncryptedResult {
         ciphertext: cipher,
@@ -57,21 +55,52 @@ fn has_valid_padding(
 }
 
 pub fn run() -> Result<(), Box<dyn Error>> {
-    let block_size = 16;
-    let key = generate_random_byte_vec(block_size);
+    const BLOCK_SIZE: usize = 16;
+    let key = generate_random_byte_vec(BLOCK_SIZE);
 
-    let result = encrypt_plaintext(&key, block_size)?;
+    let result = encrypt_plaintext(&key, BLOCK_SIZE)?;
     let mut cipher = result.ciphertext.clone();
     let cipher_len = cipher.len();
 
-    // Set last byte to a value until we match padding
-    for byte in 0..255 {
-        cipher[cipher_len - block_size - 1] = byte;
+    // TODO: Do for all blocks
+    let mut intermediate: Vec<u8> = (0..BLOCK_SIZE).map(|_| 0).collect();
+    for padding in 1..BLOCK_SIZE {
+        println!("Padding: {}", padding);
+        // It is important to randomize the rest of the cipher block to remove any previously valid padding
+        // so that only 0x01 produces a valid padding, and not additionally the char that would produce the
+        // actual padding of the plaintext
+        let random = generate_random_byte_vec(BLOCK_SIZE - 1);
+        for i in 0..BLOCK_SIZE - padding {
+            cipher[cipher_len - BLOCK_SIZE * 2 + i] = random[i];
+        }
 
-        if has_valid_padding(&cipher, &key, &result.iv, block_size)? {
-            println!("Done. Found value {}", byte);
+        // Prepare padding
+        for pos in 0..padding - 1 {
+            // Going backwards through all positions we already cracked the plaintext for
+            cipher[cipher_len - BLOCK_SIZE - pos - 1] =
+                padding as u8 ^ intermediate[intermediate.len() - pos - 1];
+        }
+
+        // Set next unknown byte to a value until we match padding
+        for byte in 0..255 {
+            cipher[cipher_len - BLOCK_SIZE - padding] = byte;
+
+            if has_valid_padding(&cipher, &key, &result.iv, BLOCK_SIZE)? {
+                println!("Intermediate value: {}", byte ^ padding as u8);
+                intermediate[BLOCK_SIZE - padding] = byte ^ padding as u8;
+            }
         }
     }
+
+    println!("Cipher block: {:?}", intermediate);
+
+    let mut plain: Vec<u8> = Vec::new();
+    for pos in 0..intermediate.len() {
+        plain.push(intermediate[pos] ^ result.ciphertext[cipher_len - BLOCK_SIZE * 2 + pos])
+    }
+
+    // TODO: Plaintext needs to be unpadded
+    println!("Plain: {:?}", plain);
 
     Ok(())
 }
