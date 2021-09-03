@@ -47,13 +47,12 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 
     if email.len() > "@test.com".len() {
         email.truncate(email.len() - "@test.com".len());
-        email.extend("@test.com".chars().into_iter());
     } else {
         email = (0..block_size - "@test.com".len() + email.len())
             .map(|_| "A".to_string())
             .collect::<String>();
-        email.extend("@test.com".chars().into_iter());
     }
+    email.extend("@test.com".chars().into_iter());
 
     dummy_profile = profile_factory.profile_for(&email)?;
     dummy_profile = dummy_profile.replace(&user_block, &admin_block);

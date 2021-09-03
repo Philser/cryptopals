@@ -1,4 +1,7 @@
-use openssl::symm::{decrypt, encrypt, Cipher, Crypter, Mode};
+#[cfg(test)]
+use openssl::symm::{decrypt, encrypt};
+
+use openssl::symm::{Cipher, Crypter, Mode};
 use std::error::Error;
 
 pub fn unpad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<dyn Error>> {
@@ -9,11 +12,11 @@ pub fn unpad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<d
         )));
     }
 
+    // In PKCS7 the last block is always padded
     let padding_char = plaintext[plaintext.len() - 1] as u8;
-    // Assuming the plaintext does not contain non-ascii chars
-    if (padding_char as usize) > block_size {
-        // Is not padded
-        return Ok(plaintext.to_vec());
+
+    if (padding_char as usize) > block_size || padding_char == 0 {
+        return Err(Box::from("Invalid padding detected"));
     }
 
     let mut new = plaintext.to_vec();
@@ -23,7 +26,6 @@ pub fn unpad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<d
             return Err(Box::from("Invalid padding detected"));
         }
     }
-
     new.truncate(plaintext.len() - padding_char as usize);
 
     Ok(new)
@@ -35,16 +37,12 @@ pub fn pad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<dyn
     }
 
     let rest = plaintext.len() % block_size;
-    if rest == 0 {
-        return Ok(plaintext.to_vec());
-    }
 
     let padding = block_size - rest;
     let mut new = plaintext.to_vec();
     for _ in 0..padding {
         new.push(padding as u8);
     }
-
     Ok(new)
 }
 
@@ -202,17 +200,19 @@ pub fn decrypt_aes_cbc(
 
 #[test]
 fn can_pad() {
-    let mut expected = b"YELLOW SUBMARINE".to_vec();
+    let mut expected = b"YELLOW SUBMARINE\x10\x10\x10\x10\x10\x10\
+    \x10\x10\x10\x10\x10\x10\x10\x10\x10\x10"
+        .to_vec();
 
     match pad_pkcs7(&b"YELLOW SUBMARINE".to_vec(), 16) {
         Ok(padded) => assert_eq!(expected, padded),
-        Err(_) => panic!("Test should not have failed"),
+        Err(e) => panic!("Test failed with {}", e),
     }
     expected = b"YELLOW SUBMARINE\x04\x04\x04\x04".to_vec();
 
     match pad_pkcs7(&b"YELLOW SUBMARINE".to_vec(), 20) {
         Ok(padded) => assert_eq!(expected, padded),
-        Err(_) => panic!("Test should not have failed"),
+        Err(e) => panic!("Test failed with {}", e),
     }
 
     expected = b"YELLOW SUBMARINE\x10\x10\x10\x10\x10\x10\x10\x10\x10\
@@ -221,31 +221,24 @@ fn can_pad() {
 
     match pad_pkcs7(&b"YELLOW SUBMARINE".to_vec(), 32) {
         Ok(padded) => assert_eq!(expected, padded),
-        Err(_) => panic!("Test should not have failed"),
+        Err(e) => panic!("Test failed with {}", e),
     }
 
     expected = b"YELLOW SUBMARINE\x05\x05\x05\x05\x05".to_vec();
 
     match pad_pkcs7(&b"YELLOW SUBMARINE".to_vec(), 7) {
         Ok(padded) => assert_eq!(expected, padded),
-        Err(_) => panic!("Test should not have failed"),
+        Err(e) => panic!("Test failed with {}", e),
     }
 }
 
 #[test]
 fn can_unpad() {
-    let mut expected = b"YELLOW SUBMARINE".to_vec();
-
-    match unpad_pkcs7(&b"YELLOW SUBMARINE".to_vec(), 16) {
-        Ok(unpadded) => assert_eq!(expected, unpadded),
-        Err(_) => panic!("Test should not have failed"),
-    }
-
-    expected = b"YELLOW SUBMARIN".to_vec();
+    let mut expected = b"YELLOW SUBMARIN".to_vec();
 
     match unpad_pkcs7(&b"YELLOW SUBMARIN\x01".to_vec(), 16) {
         Ok(unpadded) => assert_eq!(expected, unpadded),
-        Err(_) => panic!("Test should not have failed"),
+        Err(e) => panic!("Test failed with {}", e),
     }
 
     expected = b"YELLOW SUBMARINE".to_vec();
@@ -256,7 +249,12 @@ fn can_unpad() {
         16,
     ) {
         Ok(unpadded) => assert_eq!(expected, unpadded),
-        Err(_) => panic!("Test should not have failed"),
+        Err(e) => panic!("Test failed with {}", e),
+    }
+
+    match unpad_pkcs7(&b"YELLOW SUBMARINE".to_vec(), 16) {
+        Ok(_) => panic!("Test should have failed"),
+        Err(e) => assert_eq!(format!("{}", e), "Invalid padding detected"),
     }
 }
 
