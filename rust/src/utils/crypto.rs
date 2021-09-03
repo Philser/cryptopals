@@ -26,7 +26,6 @@ pub fn unpad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<d
             return Err(Box::from("Invalid padding detected"));
         }
     }
-    println!("Padding char: {}", padding_char);
     new.truncate(plaintext.len() - padding_char as usize);
 
     Ok(new)
@@ -44,7 +43,6 @@ pub fn pad_pkcs7(plaintext: &[u8], block_size: usize) -> Result<Vec<u8>, Box<dyn
     for _ in 0..padding {
         new.push(padding as u8);
     }
-    println!("new: {:?}", new.as_slice());
     Ok(new)
 }
 
