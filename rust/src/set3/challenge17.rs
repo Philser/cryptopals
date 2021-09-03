@@ -32,10 +32,7 @@ struct EncryptedResult {
 fn encrypt_plaintext(key: &[u8], block_size: usize) -> Result<EncryptedResult, Box<dyn Error>> {
     let iv = generate_random_byte_vec(block_size);
 
-    // let cipher = encrypt_aes_cbc(&pick_random_string().as_bytes(), &iv, &key)?;
-
-    let bytes: Vec<u8> = (0..block_size * 2).map(|_| 0).collect();
-    let cipher = encrypt_aes_cbc(&bytes, &iv, &key)?;
+    let cipher = encrypt_aes_cbc(pick_random_string().as_bytes(), &iv, &key)?;
 
     Ok(EncryptedResult {
         ciphertext: cipher,
@@ -65,22 +62,26 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 
     let mut cracked_plaintext: Vec<u8> = Vec::new();
 
+    let block_count = result.ciphertext.len() / BLOCK_SIZE;
     // Iterate through cipher blocks from second-to-last to first
-    for block in (1..result.ciphertext.len() / BLOCK_SIZE).rev() {
-        let mut cipher = result.ciphertext.clone();
-
+    for block in (1..block_count).rev() {
         let curr_block_start_idx = get_start_of_block(BLOCK_SIZE, block);
         let curr_block_end_idx = get_end_of_block(BLOCK_SIZE, block);
+
+        // Throw away the blocks we have already processed
+        let mut cipher = result.ciphertext
+            [0..result.ciphertext.len() - (block_count - block - 1) * BLOCK_SIZE]
+            .to_vec();
 
         // For each block, crack padding byte by byte
         let mut intermediate: Vec<u8> = (0..BLOCK_SIZE).map(|_| 0).collect();
         for cipher_idx in 0..BLOCK_SIZE {
             let padding_byte = cipher_idx as u8 + 1;
 
-            // It is important to randomize the rest of the cipher block to remove any previously valid padding
+            // It is important to zero the rest of the cipher block to remove any previously valid padding
             // so that only 0x01 produces a valid padding, and not additionally the char that would produce the
             // actual padding of the plaintext
-            overwrite_with_random(
+            overwrite_with_zero(
                 &mut cipher,
                 BLOCK_SIZE,
                 curr_block_start_idx,
@@ -89,7 +90,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 
             // Prepare padding
             for pos in 0..cipher_idx {
-                // Going backwards through all positions we already cracked the plaintext for
+                // Going through all positions we already cracked the plaintext for
                 cipher[curr_block_end_idx - pos] =
                     padding_byte ^ intermediate[intermediate.len() - pos - 1];
             }
@@ -118,8 +119,19 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             }
         }
     }
-    // TODO: Plaintext needs to be unpadded
-    println!("Plain: {:?}", cracked_plaintext);
+
+    println!("Plain bytes: {:?}", &cracked_plaintext);
+
+    println!(
+        "Plain: {:?}",
+        String::from_utf8(unpad_pkcs7(&cracked_plaintext, BLOCK_SIZE)?)
+    );
+    let base64_encoded = String::from_utf8(unpad_pkcs7(&cracked_plaintext, BLOCK_SIZE)?)?;
+
+    println!(
+        "Clear: {}",
+        String::from_utf8(base64::decode(base64_encoded)?)?
+    );
 
     Ok(())
 }
@@ -134,15 +146,14 @@ fn get_end_of_block(block_size: usize, block: usize) -> usize {
     block_size * (block - 1) + block_size - 1
 }
 
-fn overwrite_with_random(
+fn overwrite_with_zero(
     cipher: &mut [u8],
     block_size: usize,
     block_start_idx: usize,
     block_end_idx: usize,
 ) {
-    let random = generate_random_byte_vec(block_size);
-    // let random: Vec<u8> = (0..(BLOCK_SIZE - padding)).map(|_| 0).collect();
-    cipher[block_start_idx..=block_end_idx].clone_from_slice(&random[..block_size]);
+    let zeroes: Vec<u8> = (0..block_size).map(|_| 0).collect();
+    cipher[block_start_idx..=block_end_idx].clone_from_slice(&zeroes[..block_size]);
 }
 
 #[test]
@@ -169,7 +180,7 @@ fn can_overwrite_with_random() {
     let start = 0;
     let end = block_size - 1;
 
-    overwrite_with_random(&mut cipher, block_size, start, end);
+    overwrite_with_zero(&mut cipher, block_size, start, end);
 
     assert!(original[0..=1] != cipher[0..=1]);
     assert!(original[2..] == cipher[2..]);
@@ -180,7 +191,7 @@ fn can_overwrite_with_random() {
     let start = 0;
     let end = block_size - 1;
 
-    overwrite_with_random(&mut cipher, block_size, start, end);
+    overwrite_with_zero(&mut cipher, block_size, start, end);
 
     assert!(original != cipher);
 }
