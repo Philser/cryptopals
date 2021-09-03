@@ -74,7 +74,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 
         // For each block, crack padding byte by byte
         let mut intermediate: Vec<u8> = (0..BLOCK_SIZE).map(|_| 0).collect();
-        for padding in 1..BLOCK_SIZE {
+        for cipher_idx in 0..BLOCK_SIZE {
+            let padding_byte = cipher_idx as u8 + 1;
+
             // It is important to randomize the rest of the cipher block to remove any previously valid padding
             // so that only 0x01 produces a valid padding, and not additionally the char that would produce the
             // actual padding of the plaintext
@@ -86,31 +88,30 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             );
 
             // Prepare padding
-            for pos in 0..padding - 1 {
+            for pos in 0..cipher_idx {
                 // Going backwards through all positions we already cracked the plaintext for
                 cipher[curr_block_end_idx - pos] =
-                    padding as u8 ^ intermediate[intermediate.len() - pos - 1];
+                    padding_byte ^ intermediate[intermediate.len() - pos - 1];
             }
 
             // Set next unknown byte to a value until we match padding
             for byte in 0..255 {
-                cipher[curr_block_end_idx - padding + 1] = byte;
+                cipher[curr_block_end_idx - cipher_idx] = byte;
 
                 if has_valid_padding(&cipher, &key, &result.iv, BLOCK_SIZE)? {
-                    if padding == 1 {
+                    if cipher_idx == 0 {
                         // Check if penultimate byte is not 0x02, because then the rest of the attack will fail
-                        cipher[curr_block_end_idx - padding] = 0;
+                        cipher[curr_block_end_idx - 1] = 0;
                         if !has_valid_padding(&cipher, &key, &result.iv, BLOCK_SIZE)? {
                             // We changed the penultimate byte of the attack cipher block and now the padding is not valid anymore,
                             // meaning that the current byte resolves to 0x02, instead of 0x01. Thus, we continue our search.
                             continue;
                         }
                     }
-                    intermediate[BLOCK_SIZE - padding] = byte ^ padding as u8;
+                    intermediate[BLOCK_SIZE - cipher_idx - 1] = byte ^ padding_byte;
                     cracked_plaintext.insert(
                         0,
-                        byte ^ (padding as u8)
-                            ^ result.ciphertext[curr_block_end_idx - padding + 1],
+                        byte ^ padding_byte ^ result.ciphertext[curr_block_end_idx - cipher_idx],
                     );
                     break;
                 }
