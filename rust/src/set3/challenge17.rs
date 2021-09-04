@@ -1,8 +1,8 @@
 use crate::oracle::utils::generate_random_byte_vec;
-use std::{error::Error, process::exit};
+use std::error::Error;
 
 use rand::{thread_rng, Rng};
-use rust::utils::crypto::{decrypt_aes_cbc, encrypt_aes_cbc, pad_pkcs7, unpad_pkcs7};
+use rust::utils::crypto::{decrypt_aes_cbc, encrypt_aes_cbc, unpad_pkcs7};
 
 fn pick_random_string() -> &'static str {
     let strings = [
@@ -96,7 +96,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             }
 
             // Set next unknown byte to a value until we match padding
-            for byte in 0..255 {
+            for byte in 0..=255 {
                 cipher[curr_block_end_idx - cipher_idx] = byte;
 
                 if has_valid_padding(&cipher, &key, &result.iv, BLOCK_SIZE)? {
@@ -106,6 +106,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                         if !has_valid_padding(&cipher, &key, &result.iv, BLOCK_SIZE)? {
                             // We changed the penultimate byte of the attack cipher block and now the padding is not valid anymore,
                             // meaning that the current byte resolves to 0x02, instead of 0x01. Thus, we continue our search.
+
                             continue;
                         }
                     }
@@ -120,16 +121,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    println!("Plain bytes: {:?}", &cracked_plaintext);
-
-    println!(
-        "Plain: {:?}",
-        String::from_utf8(unpad_pkcs7(&cracked_plaintext, BLOCK_SIZE)?)
-    );
     let base64_encoded = String::from_utf8(unpad_pkcs7(&cracked_plaintext, BLOCK_SIZE)?)?;
-
     println!(
-        "Clear: {}",
+        "Cleartext: {}",
         String::from_utf8(base64::decode(base64_encoded)?)?
     );
 
